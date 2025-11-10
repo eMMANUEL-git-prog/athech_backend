@@ -1,3 +1,4 @@
+// /controllers/authController.js
 import { v4 as uuidv4 } from "uuid";
 import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
@@ -16,53 +17,76 @@ export const registerUser = async (req, res) => {
     club,
     photo_url,
   } = req.body;
+
   role = role?.toLowerCase();
 
   try {
-    // Check if user exists
-    const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
-    if (rows.length > 0) {
+    // 1️⃣ Check if user already exists
+    const { rows: existingUsers } = await pool.query(
+      "SELECT 1 FROM users WHERE email = $1",
+      [email]
+    );
+    if (existingUsers.length > 0) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Hash password and create user
+    // 2️⃣ Hash password and create user
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userResult = await pool.query(
+    const { rows: userRows } = await pool.query(
       "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role",
       [email, hashedPassword, role]
     );
-    const user = userResult.rows[0];
+    const user = userRows[0];
 
-    // Athlete profile
+    // 3️⃣ If athlete, create athlete profile with guaranteed unique ID
     if (role === "athlete") {
-      const uniqueAthleteId = `ATH-${uuidv4()}`;
-      await pool.query(
-        `INSERT INTO athletes 
-          (user_id, first_name, last_name, dob, gender, county, club, unique_athlete_id, photo_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          user.id,
-          first_name || "",
-          last_name || "",
-          dob || null,
-          gender || null,
-          county || null,
-          club || null,
-          uniqueAthleteId,
-          photo_url || null,
-        ]
-      );
+      let uniqueAthleteId;
+      let inserted = false;
+
+      while (!inserted) {
+        try {
+          uniqueAthleteId = `ATH-${uuidv4()}`;
+          await pool.query(
+            `INSERT INTO athletes
+              (user_id, first_name, last_name, dob, gender, county, club, unique_athlete_id, photo_url)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [
+              user.id,
+              first_name || "",
+              last_name || "",
+              dob || null,
+              gender || null,
+              county || null,
+              club || null,
+              uniqueAthleteId,
+              photo_url || null,
+            ]
+          );
+          inserted = true;
+        } catch (err) {
+          // Retry only on unique constraint violation
+          if (err.code !== "23505") throw err;
+        }
+      }
     }
 
+    // 4️⃣ Respond with token and basic user info
     res.status(201).json({
       ...user,
       token: generateToken(user.id),
     });
   } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ message: err.message });
+    console.error("Register error:", err.message);
+
+    // 5️⃣ Handle rare duplicate key errors
+    if (err.code === "23505") {
+      return res.status(400).json({
+        message:
+          "Registration failed: duplicate value exists. Try again or contact support.",
+      });
+    }
+
+    res.status(500).json({ message: "Server error: " + err.message });
   }
 };
 
