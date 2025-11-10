@@ -55,7 +55,7 @@ router.post("/chat", async (req, res) => {
         res.json({
           message: "Diet plan generated successfully",
           dietText: text,
-          pdfUrl: `http://localhost:5000/api/ai/download/${fileName}`,
+          pdfUrl: `https://athech-backend.onrender.com/api/ai/download/${fileName}`,
         });
       });
       return;
