@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
@@ -37,7 +38,7 @@ export const registerUser = async (req, res) => {
     // If athlete, create athlete profile
     if (role === "athlete") {
       // Generate unique athlete ID (e.g., ATH + timestamp)
-      const uniqueAthleteId = `ATH-${Date.now().toString().slice(-6)}`;
+      const uniqueAthleteId = `ATH-${uuidv4().slice(0, 8).toUpperCase()}`;
 
       await pool.query(
         `INSERT INTO athletes 
