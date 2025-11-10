@@ -3,26 +3,68 @@ import pool from "../config/db.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 
-if (role === "athlete") {
-  const uniqueAthleteId = `ATH-${uuidv4()}`; // <- guaranteed unique
+export const registerUser = async (req, res) => {
+  let {
+    email,
+    password,
+    role,
+    first_name,
+    last_name,
+    dob,
+    gender,
+    county,
+    club,
+    photo_url,
+  } = req.body;
+  role = role?.toLowerCase();
 
-  await pool.query(
-    `INSERT INTO athletes 
-      (user_id, first_name, last_name, dob, gender, county, club, unique_athlete_id, photo_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [
-      user.id,
-      first_name || "",
-      last_name || "",
-      dob || null,
-      gender || null,
-      county || null,
-      club || null,
-      uniqueAthleteId,
-      photo_url || null,
-    ]
-  );
-}
+  try {
+    // Check if user exists
+    const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
+    if (rows.length > 0) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    // Hash password and create user
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userResult = await pool.query(
+      "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role",
+      [email, hashedPassword, role]
+    );
+    const user = userResult.rows[0];
+
+    // Athlete profile
+    if (role === "athlete") {
+      const uniqueAthleteId = `ATH-${uuidv4()}`;
+      await pool.query(
+        `INSERT INTO athletes 
+          (user_id, first_name, last_name, dob, gender, county, club, unique_athlete_id, photo_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          user.id,
+          first_name || "",
+          last_name || "",
+          dob || null,
+          gender || null,
+          county || null,
+          club || null,
+          uniqueAthleteId,
+          photo_url || null,
+        ]
+      );
+    }
+
+    res.status(201).json({
+      ...user,
+      token: generateToken(user.id),
+    });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
 
 // @desc    Login user
 // @route   POST /api/auth/login
