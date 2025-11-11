@@ -1,6 +1,6 @@
 import express from "express";
 import OpenAI from "openai";
-import pool from "../config/db"; // your db.js
+import pool from "../config/db.js"; // your db.js
 
 const router = express.Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
