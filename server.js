@@ -48,14 +48,6 @@ app.use(
 app.use(express.json());
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
-
-io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-});
-app.set("io", io);
 
 //Example: emit after performance added
 app.post("/api/performances", async (req, res) => {
@@ -101,7 +93,14 @@ app.use("/api/athlete", athleteRouter);
 app.use("/api/alerts", alertsRouter);
 app.use("/api/ai", aiRoutes);
 app.use("/api/test", simulateRouter);
-app.use("/coach-chat", coachChatRouter);
+app.use("/api/coach-chat", coachChatRouter);
+
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000", // your frontend origin
+    methods: ["GET", "POST"],
+  },
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
