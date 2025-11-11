@@ -31,7 +31,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-  "https://athech.vercel.app/",
+  "https://athech.vercel.app",
 ];
 
 app.use(
@@ -96,6 +96,7 @@ app.use("/api/athlete", athleteRouter);
 app.use("/api/alerts", alertsRouter);
 app.use("/api/ai", aiRoutes);
 app.use("/api/test", simulateRouter);
+app.use("/coach-chat", coachChatRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
