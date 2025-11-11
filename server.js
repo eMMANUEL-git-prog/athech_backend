@@ -1,10 +1,10 @@
 // server.js
+import dotenv from "dotenv";
+import cors from "cors";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
-import cors from "cors";
 import pool from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
