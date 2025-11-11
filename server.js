@@ -27,16 +27,21 @@ dotenv.config();
 
 const app = express();
 app.use(cookieParser());
-// app.use(cors());
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "https://athech.vercel.app",
-];
+const allowedOrigins = ["http://localhost:3000", "https://athech.vercel.app"];
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (e.g. mobile apps, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`❌ Blocked by CORS: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );

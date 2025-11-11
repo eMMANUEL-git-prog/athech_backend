@@ -1,100 +1,37 @@
+// routes/coach-chat.js
 import express from "express";
-import OpenAI from "openai";
-import pool from "../config/db.js"; // your db.js
+import pool from "../config/db.js"; // make sure path is correct
 
 const router = express.Router();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Optional: in-memory chat history (can move to DB later)
-let chatHistory = {};
-
+// POST /coach-chat
 router.post("/", async (req, res) => {
-  const { userId, message } = req.body;
-  if (!userId || !message)
-    return res.status(400).json({ error: "Missing userId or message" });
-
   try {
-    // Fetch athlete personal info
-    const athleteRes = await pool.query(
-      `SELECT id, first_name, last_name, dob, gender, county, club
-       FROM athletes
-       WHERE user_id = $1`,
-      [userId]
-    );
-    const athlete = athleteRes.rows[0];
+    const { userId, message } = req.body;
 
-    // Fetch recent performances
-    const perfRes = await pool.query(
-      `SELECT event, result, date
-       FROM performances
-       WHERE athlete_id = $1
-       ORDER BY date DESC
-       LIMIT 5`,
-      [athlete.id]
+    if (!userId || !message) {
+      return res.status(400).json({ message: "Missing userId or message" });
+    }
+
+    // Optional: store user message in DB (for history)
+    await pool.query(
+      "INSERT INTO coach_chats (athlete_id, message, role) VALUES ($1, $2, 'user')",
+      [userId, message]
     );
 
-    // Fetch recent injuries
-    const injRes = await pool.query(
-      `SELECT type, severity, reported_at
-       FROM injuries
-       WHERE athlete_id = $1
-       ORDER BY reported_at DESC
-       LIMIT 5`,
-      [athlete.id]
+    // Simple AI reply logic (replace with OpenAI call if you want real AI)
+    const reply = `Coach AI reply: I received your message "${message}"`;
+
+    // Optional: store AI reply in DB
+    await pool.query(
+      "INSERT INTO coach_chats (athlete_id, message, role) VALUES ($1, $2, 'ai')",
+      [userId, reply]
     );
-
-    // Fetch recent nutrition logs
-    const nutritionRes = await pool.query(
-      `SELECT date, meals, supplements
-       FROM nutrition_logs
-       WHERE athlete_id = $1
-       ORDER BY date DESC
-       LIMIT 5`,
-      [athlete.id]
-    );
-
-    // Prepare context for GPT
-    const context = `
-Athlete Info:
-Name: ${athlete.first_name} ${athlete.last_name}
-DOB: ${athlete.dob}
-Gender: ${athlete.gender}
-County: ${athlete.county}
-Club: ${athlete.club}
-
-Recent Performances: ${JSON.stringify(perfRes.rows)}
-Recent Injuries: ${JSON.stringify(injRes.rows)}
-Recent Nutrition Logs: ${JSON.stringify(nutritionRes.rows)}
-`;
-
-    const messages = [
-      {
-        role: "system",
-        content: `You are an AI coach for an athlete. Use their data below to provide personalized advice.\n${context}`,
-      },
-      {
-        role: "user",
-        content: message,
-      },
-    ];
-
-    // Call OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages,
-      temperature: 0.7,
-    });
-
-    const reply = completion.choices[0].message.content;
-
-    // Store in memory history
-    if (!chatHistory[userId]) chatHistory[userId] = [];
-    chatHistory[userId].push({ user: message, ai: reply });
 
     res.json({ reply });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "AI request failed" });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
