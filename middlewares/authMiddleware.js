@@ -1,26 +1,39 @@
-// /middlewares/authMiddleware.js
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 
 export const protect = async (req, res, next) => {
-  let token = req.headers.authorization?.split(" ")[1];
-
-  if (!token)
-    return res.status(401).json({ message: "Not authorized, no token" });
-
   try {
+    let token;
+
+    if (req.cookies?.token) {
+      token = req.cookies.token;
+    } else if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ message: "Not authorized, no token" });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { rows } = await pool.query(
+
+    const userQuery = await pool.query(
       "SELECT id, email, role FROM users WHERE id = $1",
       [decoded.id]
     );
 
-    if (rows.length === 0)
+    const user = userQuery.rows[0];
+    if (!user) {
       return res.status(401).json({ message: "User not found" });
+    }
 
-    req.user = rows[0];
+    req.user = user;
     next();
-  } catch (err) {
-    res.status(401).json({ message: "Token failed or expired" });
+  } catch (error) {
+    console.error("Auth middleware error:", error.message);
+    return res.status(401).json({ message: "Not authorized" });
   }
 };

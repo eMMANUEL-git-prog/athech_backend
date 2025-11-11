@@ -1,5 +1,6 @@
 // server.js
 import express from "express";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import cors from "cors";
 import pool from "./config/db.js";
@@ -14,17 +15,22 @@ import adminInjuryRoutes from "./routes/adminInjuryRoutes.js";
 import adminNutritionRoutes from "./routes/adminNutritionRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import adminReportsRoutes from "./routes/adminReportsRoutes.js";
+import adminRouter from "./routes/admin.js";
+import coachRouter from "./routes/coach.js";
+import athleteRouter from "./routes/athlete.js";
+import alertsRouter from "./routes/alerts.js";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
-// app.use(
-//   cors({
-//     origin: "http://localhost:3000", // your frontend URL
-//     credentials: true,
-//   })
-// );
+app.use(cookieParser());
+// app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000", // your frontend URL
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Test route
@@ -53,6 +59,10 @@ app.use("/api/admin/performances", adminPerformanceRoutes);
 app.use("/api/admin/injuries", adminInjuryRoutes);
 app.use("/api/admin/nutrition", adminNutritionRoutes);
 app.use("/api/admin/reports", adminReportsRoutes);
+app.use("/api/admin", adminRouter);
+app.use("/api/coach", coachRouter);
+app.use("/api/athlete", athleteRouter);
+app.use("/api/alerts", alertsRouter);
 app.use("/api/ai", aiRoutes);
 
 const PORT = process.env.PORT || 5000;
