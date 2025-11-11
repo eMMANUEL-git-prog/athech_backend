@@ -1,5 +1,8 @@
 // server.js
 import dotenv from "dotenv";
+
+dotenv.config();
+
 import cors from "cors";
 import express from "express";
 import http from "http";
@@ -22,8 +25,6 @@ import athleteRouter from "./routes/athlete.js";
 import alertsRouter from "./routes/alerts.js";
 import simulateRouter from "./routes/simulate.js";
 import coachChatRouter from "./routes/coach-chat.js";
-
-dotenv.config();
 
 const app = express();
 app.use(cookieParser());
