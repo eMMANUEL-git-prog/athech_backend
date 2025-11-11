@@ -1,5 +1,7 @@
 // server.js
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -8,7 +10,6 @@ import authRoutes from "./routes/authRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
 import injuryRoutes from "./routes/injuryRoutes.js";
 import nutritionRoutes from "./routes/nutritionRoutes.js";
-import athleteRoutes from "./routes/athleteRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import adminPerformanceRoutes from "./routes/adminPerformanceRoutes.js";
 import adminInjuryRoutes from "./routes/adminInjuryRoutes.js";
@@ -19,19 +20,50 @@ import adminRouter from "./routes/admin.js";
 import coachRouter from "./routes/coach.js";
 import athleteRouter from "./routes/athlete.js";
 import alertsRouter from "./routes/alerts.js";
+import simulateRouter from "./routes/simulate.js";
+import coachChatRouter from "./routes/coach-chat.js";
 
 dotenv.config();
 
 const app = express();
 app.use(cookieParser());
 // app.use(cors());
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://athech.vercel.app/",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3000", // your frontend URL
+    origin: allowedOrigins,
     credentials: true,
   })
 );
 app.use(express.json());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+});
+app.set("io", io);
+
+//Example: emit after performance added
+app.post("/api/performances", async (req, res) => {
+  const { athlete_id, result } = req.body;
+  const newPerf = await pool.query(
+    `INSERT INTO performances (athlete_id, result) VALUES ($1, $2) RETURNING *`,
+    [athlete_id, result]
+  );
+
+  // Notify all dashboards
+  io.emit("dataUpdated", { table: "performances", athlete_id });
+  res.json(newPerf.rows[0]);
+});
 
 // Test route
 app.get("/", (req, res) => {
@@ -53,7 +85,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/performances", performanceRoutes);
 app.use("/api/injuries", injuryRoutes);
 app.use("/api/nutrition", nutritionRoutes);
-app.use("/api/athletes", athleteRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/performances", adminPerformanceRoutes);
 app.use("/api/admin/injuries", adminInjuryRoutes);
@@ -64,6 +95,7 @@ app.use("/api/coach", coachRouter);
 app.use("/api/athlete", athleteRouter);
 app.use("/api/alerts", alertsRouter);
 app.use("/api/ai", aiRoutes);
+app.use("/api/test", simulateRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
